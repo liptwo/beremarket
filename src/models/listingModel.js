@@ -23,12 +23,12 @@ const LISTING_COLLECTION_SCHEMA = Joi.object({
   // We will convert it to ObjectId before database operations.
   sellerId: Joi.string().required(),
   title: Joi.string().required().min(5).max(100).trim().strict(),
-  description: Joi.string().required().min(10).max(5000).trim().strict(),
+  description: Joi.string().required().min(10).max(5000).trim(),
   price: Joi.number().required().min(0),
-  category: Joi.string().required().trim().strict(),
-  condition: Joi.string()
-    .valid(...Object.values(LISTING_CONDITION))
-    .required(),
+  categoryId: Joi.string().required().trim().strict(),
+  // condition: Joi.string()
+  //   .valid(...Object.values(LISTING_CONDITION))
+  //   .required(),
   images: Joi.array().items(Joi.string().uri()).default([]),
   location: Joi.string().trim().strict().default(null),
   status: Joi.string()
@@ -142,6 +142,16 @@ const deleteOneById = async (listingId) => {
   }
 }
 
+const countDocuments = async (filter = {}) => {
+  try {
+    return await GET_DB()
+      .collection(LISTING_COLLECTION_NAME)
+      .countDocuments(filter)
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 export const listingModel = {
   LISTING_COLLECTION_NAME,
   LISTING_COLLECTION_SCHEMA,
@@ -149,5 +159,6 @@ export const listingModel = {
   findOneById,
   find,
   update,
-  deleteOneById
+  deleteOneById,
+  countDocuments
 }

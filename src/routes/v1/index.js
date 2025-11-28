@@ -6,6 +6,7 @@ import { listingRoute } from './listingRoute.js'
 import { categoryRoute } from './categoryRoute.js'
 import { reviewRoute } from './reviewRoute.js'
 import { messageRoute } from './messageRoute.js'
+import { dashboardRoute } from './dashboardRoute.js'
 
 // api v1 status
 Router.get('/', (req, res) => {
@@ -32,5 +33,7 @@ Router.use('/reviews', reviewRoute)
 
 /** Message APIs */
 Router.use('/messages', messageRoute)
+
+Router.use('/dashboard', dashboardRoute)
 
 export const APIs_V1 = Router

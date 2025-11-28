@@ -15,19 +15,24 @@ const createNew = async (req, res, next) => {
       )
     }
 
-    const { name, parentId, image } = req.body
+    const { name, code, parentCode, imageUrl } = req.body
     // Generate a slug from the category name.
     const generatedSlug = slugify(name)
 
     const categoryData = {
       name,
       slug: generatedSlug,
-      parentId: parentId || null,
-      imageUrl: image || null
+      code: code || null,
+      parentCode: parentCode || '',
+      imageUrl: imageUrl || ''
     }
 
     const createdCategory = await categoryModel.createNew(categoryData)
-    res.status(StatusCodes.CREATED).json(createdCategory)
+    const newCategory = await categoryModel.findOneById(
+      createdCategory.insertedId
+    )
+    res.status(StatusCodes.CREATED).json(newCategory)
+    // res.status(StatusCodes.CREATED).json(createdCategory)
   } catch (error) {
     next(error)
   }

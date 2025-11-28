@@ -5,18 +5,36 @@ import { listingValidation } from '~/validations/listingValidation'
 
 const Router = express.Router()
 
-// Public routes, anyone can view listings
-Router.route('/').get(listingController.getListings)
-
-Router.route('/:id').get(listingController.getDetails)
+// Public routes for searching and viewing listings
+Router.route('/all').get(listingController.getAllListingsSimple)
+Router.route('/search').get(
+  authMiddleware.isAuthorized,
+  listingController.getListings
+)
+Router.route('/').get(
+  authMiddleware.isAuthorized,
+  listingController.getListings
+) // Fallback for old path
 
 // All routes below this will be protected by the auth middleware
-Router.use(authMiddleware.isAuthorized)
 
-Router.route('/').post(listingValidation.createNew, listingController.createNew)
+Router.route('/me').get(
+  authMiddleware.isAuthorized,
+  listingController.getMyListings
+)
+Router.route('/:id').get(listingController.getDetails)
+Router.route('/').post(
+  authMiddleware.isAuthorized,
+  listingValidation.createNew,
+  listingController.createNew
+)
 
 Router.route('/:id')
-  .put(listingValidation.updateListing, listingController.updateListing)
-  .delete(listingController.deleteListing)
+  .put(
+    authMiddleware.isAuthorized,
+    listingValidation.updateListing,
+    listingController.updateListing
+  )
+  .delete(authMiddleware.isAuthorized, listingController.deleteListing)
 
 export const listingRoute = Router

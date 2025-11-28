@@ -11,7 +11,9 @@ const CONVERSATION_COLLECTION_SCHEMA = Joi.object({
 })
 
 const validateBeforeCreate = async (data) => {
-  return await CONVERSATION_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
+  return await CONVERSATION_COLLECTION_SCHEMA.validateAsync(data, {
+    abortEarly: false
+  })
 }
 
 const createNew = async (data) => {
@@ -19,7 +21,7 @@ const createNew = async (data) => {
     const validData = await validateBeforeCreate(data)
     const dataToInsert = {
       ...validData,
-      participants: validData.participants.map(id => new ObjectId(id))
+      participants: validData.participants.map((id) => new ObjectId(id))
     }
     return await GET_DB()
       .collection(CONVERSATION_COLLECTION_NAME)
@@ -42,15 +44,86 @@ const findOneById = async (conversationId) => {
 }
 
 const findByParticipantId = async (userId) => {
-    try {
-      return await GET_DB()
-        .collection(CONVERSATION_COLLECTION_NAME)
-        .find({
-          participants: new ObjectId(userId)
-        }).toArray()
-    } catch (error) {
-      throw new Error(error)
-    }
+  try {
+    const db = GET_DB()
+    const conversations = await db
+      .collection(CONVERSATION_COLLECTION_NAME)
+      .aggregate([
+        // 1. Tìm các cuộc trò chuyện có người dùng hiện tại
+        {
+          $match: {
+            participants: new ObjectId(userId)
+          }
+        },
+        // 2. Join với collection 'users' để lấy thông tin người tham gia
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'participants',
+            foreignField: '_id',
+            as: 'participantDetails'
+          }
+        },
+        // 3. Tối ưu: Join với collection 'messages' và chỉ lấy tin nhắn cuối cùng
+        {
+          $lookup: {
+            from: 'messages',
+            let: { conversationId: '$_id' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ['$conversationId', '$$conversationId'] }
+                }
+              },
+              { $sort: { createdAt: -1 } },
+              { $limit: 1 }
+            ],
+            as: 'lastMessageArr'
+          }
+        },
+        // 4. Thêm các trường mới
+        {
+          $addFields: {
+            // Tìm người tham gia còn lại
+            otherParticipant: {
+              $arrayElemAt: [
+                {
+                  $filter: {
+                    input: '$participantDetails',
+                    as: 'participant',
+                    cond: { $ne: ['$$participant._id', new ObjectId(userId)] }
+                  }
+                },
+                0
+              ]
+            },
+            // Lấy tin nhắn cuối cùng
+            lastMessage: { $arrayElemAt: ['$lastMessageArr', 0] }
+          }
+        },
+        // 5. Sắp xếp theo tin nhắn cuối cùng
+        { $sort: { 'lastMessage.createdAt': -1 } },
+        // 6. Định hình lại output
+        {
+          $project: {
+            participants: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            lastMessage: 1,
+            // Chọn lọc và định hình lại trường otherParticipant
+            otherParticipant: {
+              _id: '$otherParticipant._id',
+              displayName: '$otherParticipant.name', // Sửa từ displayName thành name
+              avatar: '$otherParticipant.avatar'
+            }
+          }
+        }
+      ])
+      .toArray()
+    return conversations
+  } catch (error) {
+    throw new Error(error)
+  }
 }
 
 const findByParticipants = async (participants) => {
@@ -58,7 +131,7 @@ const findByParticipants = async (participants) => {
     return await GET_DB()
       .collection(CONVERSATION_COLLECTION_NAME)
       .findOne({
-        participants: { $all: participants.map(id => new ObjectId(id)) }
+        participants: { $all: participants.map((id) => new ObjectId(id)) }
       })
   } catch (error) {
     throw new Error(error)

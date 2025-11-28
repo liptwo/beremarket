@@ -66,6 +66,7 @@ const START_SEVER = () => {
     console.log('1. Connecting to database...')
     await connectToDatabase() // Make sure to await this
     console.log('2. Successfully connected to database!')
+
     START_SEVER()
   } catch (error) {
     console.error('Failed to start server:', error)

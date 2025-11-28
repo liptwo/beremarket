@@ -5,7 +5,7 @@ import ApiError from '~/utils/ApiError'
 const sendMessage = async (req, res, next) => {
   const correctCondition = Joi.object({
     receiverId: Joi.string().required(),
-    content: Joi.string().required().max(2000)
+    message: Joi.string().required().max(2000)
   })
 
   try {

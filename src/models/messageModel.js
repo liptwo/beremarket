@@ -37,6 +37,18 @@ const createNew = async (data) => {
   }
 }
 
+const findOneById = async (messageId) => {
+  try {
+    return await GET_DB()
+      .collection(MESSAGE_COLLECTION_NAME)
+      .findOne({
+        _id: new ObjectId(messageId)
+      })
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 const findByConversationId = async (conversationId) => {
   try {
     const db = GET_DB()
@@ -56,5 +68,6 @@ export const messageModel = {
   MESSAGE_COLLECTION_NAME,
   MESSAGE_COLLECTION_SCHEMA,
   createNew,
-  findByConversationId
+  findByConversationId,
+  findOneById
 }

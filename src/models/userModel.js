@@ -24,11 +24,11 @@ const USER_COLLECTION_SCHEMA = Joi.object({
     .valid(USER_ROLES.CLIENT, USER_ROLES.ADMIN)
     .default(USER_ROLES.CLIENT),
 
-  favorites: Joi.array().items(Joi.string()).default([]),
+  favorites: Joi.array().items(Joi.object().instance(ObjectId)).default([]),
 
   isActive: Joi.boolean().default(false),
   verifyToken: Joi.string(),
-
+  phoneNumber: Joi.string().default('0333912532'),
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
   destroy: Joi.boolean().default(false)
@@ -95,6 +95,26 @@ const update = async (userId, updateData) => {
   }
 }
 
+const find = async (filter = {}, options = {}) => {
+  try {
+    const db = GET_DB()
+    const cursor = db.collection(USER_COLLECTION_NAME).find(filter, options)
+    return await cursor.toArray()
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const countDocuments = async (filter = {}) => {
+  try {
+    return await GET_DB()
+      .collection(USER_COLLECTION_NAME)
+      .countDocuments(filter)
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 export const userModel = {
   USER_COLLECTION_NAME,
   USER_COLLECTION_SCHEMA,
@@ -102,5 +122,7 @@ export const userModel = {
   createNew,
   findOneById,
   findOneByEmail,
-  update
+  update,
+  find,
+  countDocuments
 }

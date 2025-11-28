@@ -10,6 +10,8 @@ Router.use(authMiddleware.isAuthorized)
 
 Router.route('/conversations').get(messageController.getConversations)
 
+Router.route('/find-or-create').post(messageController.findOrCreateConversation)
+
 Router.route('/:otherUserId').get(messageController.getMessages)
 
 Router.route('/').post(

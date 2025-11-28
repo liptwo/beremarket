@@ -155,6 +155,16 @@ const getFavorites = async (req, res, next) => {
   }
 }
 
+const getAllUsers = async (req, res, next) => {
+  try {
+    // Lấy tất cả người dùng, có thể thêm phân trang và bộ lọc sau này nếu cần
+    const users = await userModel.find({})
+    res.status(StatusCodes.OK).json(users)
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const userController = {
   createNew,
   verifyAccount,
@@ -165,5 +175,6 @@ export const userController = {
   getMe,
   addFavorite,
   removeFavorite,
-  getFavorites
+  getFavorites,
+  getAllUsers
 }

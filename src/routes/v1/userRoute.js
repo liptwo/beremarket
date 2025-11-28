@@ -2,8 +2,8 @@ import express from 'express'
 const Router = express.Router()
 import { userValidation } from '~/validations/userValidation.js'
 import { userController } from '~/controllers/userController.js'
-import { authMiddleware } from '~/middlewares/authMiddleware'
-import { multerUploadMiddlewares } from '~/middlewares/multerUploadMiddlewares'
+import { authMiddleware } from '~/middlewares/authMiddleware.js'
+import { multerUploadMiddlewares } from '~/middlewares/multerUploadMiddlewares.js'
 
 Router.route('/register').post(
   userValidation.createNew,
@@ -44,6 +44,12 @@ Router.route('/update').put(
   multerUploadMiddlewares.upload.single('avatar'),
   userValidation.update,
   userController.update
+)
+
+/** Admin APIs */
+Router.route('/all').get(
+  authMiddleware.isAuthorized,
+  userController.getAllUsers
 )
 
 export const userRoute = Router
