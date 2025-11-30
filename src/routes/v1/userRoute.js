@@ -48,8 +48,29 @@ Router.route('/update').put(
 
 /** Admin APIs */
 Router.route('/all').get(
-  authMiddleware.isAuthorized,
+  authMiddleware.isAuthorized, // authMiddleware.isAdmin,
   userController.getAllUsers
 )
+
+Router.route('/').post(
+  authMiddleware.isAuthorized, // authMiddleware.isAdmin,
+  userValidation.createNew,
+  userController.createUserByAdmin
+)
+
+Router.route('/:id')
+  .get(
+    authMiddleware.isAuthorized, // authMiddleware.isAdmin,
+    userController.getUserDetails
+  )
+  .put(
+    authMiddleware.isAuthorized, // authMiddleware.isAdmin,
+    userValidation.update, // You might need a specific validation for admin updates
+    userController.updateUserByAdmin
+  )
+  .delete(
+    authMiddleware.isAuthorized, // authMiddleware.isAdmin,
+    userController.deleteUserByAdmin
+  )
 
 export const userRoute = Router

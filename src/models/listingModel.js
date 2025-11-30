@@ -22,13 +22,13 @@ const LISTING_COLLECTION_SCHEMA = Joi.object({
   // sellerId will be validated as a string, but should be an ObjectId.
   // We will convert it to ObjectId before database operations.
   sellerId: Joi.string().required(),
-  title: Joi.string().required().min(5).max(100).trim().strict(),
-  description: Joi.string().required().min(10).max(5000).trim(),
+  title: Joi.string().required().min(5).max(100).strict(),
+  description: Joi.string().required().min(10).max(5000),
   price: Joi.number().required().min(0),
   categoryId: Joi.string().required().trim().strict(),
-  // condition: Joi.string()
-  //   .valid(...Object.values(LISTING_CONDITION))
-  //   .required(),
+  condition: Joi.string()
+    .valid(...Object.values(LISTING_CONDITION))
+    .required(),
   images: Joi.array().items(Joi.string().uri()).default([]),
   location: Joi.string().trim().strict().default(null),
   status: Joi.string()
@@ -36,6 +36,7 @@ const LISTING_COLLECTION_SCHEMA = Joi.object({
     .default(LISTING_STATUS.PENDING),
   expried_at: Joi.date().timestamp('javascript').default(null),
   views: Joi.number().default(0),
+  viewedBy: Joi.array().items(Joi.string()).default([]),
   isFeatured: Joi.boolean().default(false),
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
@@ -77,11 +78,37 @@ const createNew = async (data) => {
 
 const findOneById = async (listingId) => {
   try {
-    return await GET_DB()
+    const db = GET_DB()
+    const listing = await db.collection(LISTING_COLLECTION_NAME).findOne({
+      _id: new ObjectId(listingId)
+    })
+    return listing
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const findOneByIdAndUpdateView = async (listingId, userId) => {
+  try {
+    const db = GET_DB()
+    // Sử dụng findOneAndUpdate để đảm bảo tính nguyên tử
+    // Tăng `views` và thêm `userId` vào `viewedBy` chỉ khi userId chưa tồn tại trong mảng
+    const result = await db
       .collection(LISTING_COLLECTION_NAME)
-      .findOne({
-        _id: new ObjectId(listingId)
-      })
+      .findOneAndUpdate(
+        {
+          _id: new ObjectId(listingId),
+          sellerId: { $ne: new ObjectId(userId) }, // Người bán không tự tăng view của mình
+          viewedBy: { $ne: userId } // Chỉ cập nhật nếu user này chưa xem
+        },
+        {
+          $inc: { views: 1 },
+          $addToSet: { viewedBy: userId } // $addToSet đảm bảo không có userId trùng lặp
+        },
+        { returnDocument: 'after' } // Trả về document sau khi đã cập nhật
+      )
+
+    return result
   } catch (error) {
     throw new Error(error)
   }
@@ -91,7 +118,19 @@ const findOneById = async (listingId) => {
 const find = async (filter = {}, options = {}) => {
   try {
     const db = GET_DB()
-    const cursor = db.collection(LISTING_COLLECTION_NAME).find(filter, options)
+    let cursor = db.collection(LISTING_COLLECTION_NAME).find(filter)
+
+    // Apply options like sort, skip, limit
+    if (options.sort) {
+      cursor = cursor.sort(options.sort)
+    }
+    if (options.skip) {
+      cursor = cursor.skip(options.skip)
+    }
+    if (options.limit) {
+      cursor = cursor.limit(options.limit)
+    }
+
     return await cursor.toArray()
   } catch (error) {
     throw new Error(error)
@@ -142,6 +181,17 @@ const deleteOneById = async (listingId) => {
   }
 }
 
+const aggregate = async (pipeline = []) => {
+  try {
+    return await GET_DB()
+      .collection(LISTING_COLLECTION_NAME)
+      .aggregate(pipeline)
+      .toArray()
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 const countDocuments = async (filter = {}) => {
   try {
     return await GET_DB()
@@ -157,7 +207,9 @@ export const listingModel = {
   LISTING_COLLECTION_SCHEMA,
   createNew,
   findOneById,
+  findOneByIdAndUpdateView,
   find,
+  aggregate,
   update,
   deleteOneById,
   countDocuments

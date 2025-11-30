@@ -10,6 +10,7 @@ import { corsOptions } from '~/config/cors'
 import cookieParser from 'cookie-parser'
 import { initializeSocket } from '~/sockets/messageSocket'
 import http from 'http'
+import { listingModel } from './models/listingModel'
 
 const START_SEVER = () => {
   const app = express()

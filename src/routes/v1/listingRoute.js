@@ -7,14 +7,8 @@ const Router = express.Router()
 
 // Public routes for searching and viewing listings
 Router.route('/all').get(listingController.getAllListingsSimple)
-Router.route('/search').get(
-  authMiddleware.isAuthorized,
-  listingController.getListings
-)
-Router.route('/').get(
-  authMiddleware.isAuthorized,
-  listingController.getListings
-) // Fallback for old path
+Router.route('/search').get(listingController.getListings)
+Router.route('/').get(listingController.getListings) // Fallback for old path
 
 // All routes below this will be protected by the auth middleware
 

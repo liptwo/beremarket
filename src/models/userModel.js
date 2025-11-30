@@ -95,11 +95,39 @@ const update = async (userId, updateData) => {
   }
 }
 
-const find = async (filter = {}, options = {}) => {
+const find = async (
+  filter = {},
+  options = { page: 1, limit: 10, search: '' }
+) => {
   try {
     const db = GET_DB()
-    const cursor = db.collection(USER_COLLECTION_NAME).find(filter, options)
-    return await cursor.toArray()
+    const { page, limit, search } = options
+    const skip = (page - 1) * limit
+
+    let query = filter
+    if (search) {
+      query = {
+        ...filter,
+        $or: [
+          { displayName: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } },
+          { username: { $regex: search, $options: 'i' } }
+        ]
+      }
+    }
+
+    const cursor = db.collection(USER_COLLECTION_NAME).find(query)
+    const totalItems = await db
+      .collection(USER_COLLECTION_NAME)
+      .countDocuments(query)
+    const totalPages = Math.ceil(totalItems / limit)
+
+    const data = await cursor.skip(skip).limit(limit).toArray()
+
+    return {
+      data,
+      pagination: { page, limit, totalItems, totalPages }
+    }
   } catch (error) {
     throw new Error(error)
   }

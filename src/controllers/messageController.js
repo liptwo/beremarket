@@ -8,7 +8,7 @@ import { getIO } from '~/sockets/messageSocket'
 const sendMessage = async (req, res, next) => {
   try {
     const senderId = req.jwtDecoded._id
-    const { receiverId, message } = req.body
+    const { receiverId, message, imageUrl } = req.body
 
     if (!receiverId || !message) {
       throw new ApiError(
@@ -22,37 +22,45 @@ const sendMessage = async (req, res, next) => {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Receiver not found.')
     }
 
+    // Tìm hoặc tạo conversation
     let conversation = await conversationModel.findByParticipants([
       senderId,
       receiverId
     ])
 
     if (!conversation) {
-      const newConversationResult = await conversationModel.createNew({
+      const newConversation = await conversationModel.createNew({
         participants: [senderId, receiverId]
       })
-      // Tạo object conversation tạm thời để không phải query lại DB
+
       conversation = {
-        _id: newConversationResult.insertedId,
+        _id: newConversation.insertedId,
         participants: [senderId, receiverId]
       }
     }
 
+    // Tạo message mới
     const newMessageData = {
       conversationId: conversation._id.toString(),
       senderId: senderId.toString(),
       receiverId: receiverId.toString(),
       message
     }
+    // Thêm imageUrl vào dữ liệu tin nhắn mới
+    if (imageUrl) newMessageData.imageUrl = imageUrl
+
     const createResult = await messageModel.createNew(newMessageData)
 
-    // Lấy lại toàn bộ thông tin tin nhắn vừa tạo
+    // Lấy message đầy đủ để emit
     const newMessage = await messageModel.findOneById(createResult.insertedId)
 
-    // Emit the new message to the receiver
-    getIO().to(receiverId.toString()).emit('newMessage', newMessage)
-    // Cũng emit cho chính người gửi để cập nhật các client khác của họ (nếu có)
-    getIO().to(senderId.toString()).emit('newMessage', newMessage)
+    const io = getIO()
+
+    // Emit cho người nhận
+    io.to(receiverId.toString()).emit('newMessage', newMessage)
+
+    // Emit cho người gửi (các tab/device khác)
+    // io.to(senderId.toString()).emit('newMessage', newMessage)
 
     res.status(StatusCodes.CREATED).json(newMessage)
   } catch (error) {

@@ -30,13 +30,25 @@ const createNew = async (req, res, next) => {
 const getDetails = async (req, res, next) => {
   try {
     const listingId = req.params.id
-    const listing = await listingModel.findOneById(listingId)
+    const userId = req.jwtDecoded?._id // Lấy userId từ token nếu có
+
+    let listing
+
+    if (userId) {
+      // Nếu người dùng đã đăng nhập, thử cập nhật lượt xem
+      // Hàm này sẽ trả về listing đã cập nhật nếu user chưa xem, hoặc null nếu đã xem rồi
+      await listingModel.findOneByIdAndUpdateView(listingId, userId)
+    }
+
+    // Luôn lấy thông tin mới nhất của listing sau khi đã cập nhật (hoặc không)
+    listing = await listingModel.findOneById(listingId)
 
     if (!listing || listing._destroy) {
       return res
         .status(StatusCodes.NOT_FOUND)
         .json({ message: 'Listing not found.' })
     }
+
     const seller = await userModel.findOneById(listing.sellerId)
     listing.seller = seller
 
@@ -55,15 +67,21 @@ const getListings = async (req, res, next) => {
       maxPrice,
       location,
       sortBy = 'createdAt',
-      sortOrder = 'desc'
+      sortOrder = 'desc',
+      page = 1,
+      limit = 10
     } = req.query
 
     const filter = { _destroy: false }
 
     // Nếu không phải admin, áp dụng bộ lọc status mặc định
     const isAdmin = req.jwtDecoded?.role === userModel.USER_ROLES.ADMIN
-    if (!isAdmin) {
-      filter.status = { $nin: ['DELETED', 'EXPIRED', 'PENDING'] }
+    if (isAdmin && status) {
+      // Admin có thể lọc theo bất kỳ trạng thái nào được cung cấp
+      filter.status = Array.isArray(status) ? { $in: status } : status
+    } else if (!isAdmin) {
+      // Người dùng thường chỉ có thể xem các bài đăng đã được xuất bản
+      filter.status = 'PUBLISHED'
     }
 
     // 🔍 Search q (không dùng $text nữa)
@@ -76,13 +94,6 @@ const getListings = async (req, res, next) => {
 
     // 🎯 Lọc theo danh mục
     if (categoryId) filter.categoryId = new ObjectId(categoryId)
-
-    // 🎯 Lọc theo trạng thái
-    // Nếu admin có truyền status thì vẫn lọc theo status đó
-    // Nếu không phải admin, param status sẽ ghi đè bộ lọc mặc định
-    if (status) {
-      filter.status = status
-    }
 
     // 🎯 Lọc theo vị trí (tỉnh/thành)
     if (location) filter.location = { $regex: location, $options: 'i' }
@@ -98,10 +109,58 @@ const getListings = async (req, res, next) => {
     const sort = {}
     sort[sortBy] = sortOrder === 'asc' ? 1 : -1
 
-    // 📌 Truy vấn
-    const listings = await listingModel.find(filter, { sort })
+    // 📌 Phân trang và Truy vấn
+    const pageNum = parseInt(page, 10)
+    const limitNum = parseInt(limit, 10)
+    const skip = (pageNum - 1) * limitNum
 
-    res.status(StatusCodes.OK).json(listings)
+    // Đếm tổng số document khớp với bộ lọc
+    const totalItems = await listingModel.countDocuments(filter)
+    const totalPages = Math.ceil(totalItems / limitNum)
+
+    // Xây dựng pipeline để lấy dữ liệu và thông tin người bán
+    const listings = await listingModel.aggregate([
+      { $match: filter },
+      { $sort: sort },
+      { $skip: skip },
+      { $limit: limitNum },
+      {
+        $lookup: {
+          from: userModel.USER_COLLECTION_NAME, // 'users' collection
+          localField: 'sellerId',
+          foreignField: '_id',
+          as: 'sellerInfo'
+        }
+      },
+      {
+        $unwind: {
+          path: '$sellerInfo',
+          preserveNullAndEmptyArrays: true // Giữ lại listing ngay cả khi không tìm thấy seller
+        }
+      },
+      {
+        $addFields: {
+          seller: '$sellerInfo' // Đổi tên 'sellerInfo' thành 'seller' cho đẹp
+        }
+      },
+      {
+        $project: {
+          sellerInfo: 0,
+          'seller.password': 0,
+          'seller.verifyToken': 0
+        }
+      } // Xóa trường 'sellerInfo' thừa và các trường nhạy cảm
+    ])
+
+    res.status(StatusCodes.OK).json({
+      data: listings,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalItems,
+        itemsPerPage: limitNum
+      }
+    })
   } catch (error) {
     next(error)
   }
@@ -113,7 +172,32 @@ const getAllListingsSimple = async (req, res, next) => {
       _destroy: false, // Chỉ lấy các tin đăng chưa bị xóa mềm
       status: { $nin: ['DELETED', 'EXPIRED', 'PENDING'] } // Không lấy các trạng thái này
     }
-    const listings = await listingModel.find(filter)
+    // Sử dụng aggregation để join với thông tin người bán
+    const listings = await listingModel.aggregate([
+      { $match: filter },
+      {
+        $lookup: {
+          from: userModel.USER_COLLECTION_NAME,
+          localField: 'sellerId',
+          foreignField: '_id',
+          as: 'sellerInfo'
+        }
+      },
+      {
+        $unwind: {
+          path: '$sellerInfo',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      { $addFields: { seller: '$sellerInfo' } },
+      {
+        $project: {
+          sellerInfo: 0,
+          'seller.password': 0,
+          'seller.verifyToken': 0
+        }
+      }
+    ])
 
     res.status(StatusCodes.OK).json(listings)
   } catch (error) {

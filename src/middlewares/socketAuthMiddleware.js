@@ -1,25 +1,21 @@
-import { StatusCodes } from 'http-status-codes'
-import { env } from '~/config/environment'
-import { jwtHelper } from '~/helpers/jwt.helper'
+import jwt from 'jsonwebtoken'
+import { ENV } from '~/config/environment'
 
-export const socketAuthMiddleware = (socket, next) => {
-  try {
-    const token = socket.handshake.auth?.token
-    if (!token) {
-      return next(new Error('Authentication error: Token not provided.'))
-    }
-
-    const decoded = jwtHelper.verifyToken(token, env.JWT_SECRET)
-    if (!decoded || !decoded._id) {
-      return next(new Error('Authentication error: Invalid token.'))
-    }
-
-    // Gán thông tin user vào socket để sử dụng sau này
-    socket.user = decoded
-    // Cho socket tham gia vào phòng riêng của user
-    socket.join(decoded._id.toString())
-    next()
-  } catch (error) {
-    next(new Error('Authentication error: ' + error.message))
+export const socketAuth = (socket, next) => {
+  const token = socket.handshake.auth?.token
+  // console.log('socketAuth:', token, ': ENv:', ENV.ACCESS_TOKEN_SECRET_SIGNATURE)
+  if (!token) {
+    console.log('❌ NO_TOKEN')
+    return next(new Error('NO_TOKEN'))
   }
+
+  jwt.verify(token, ENV.ACCESS_TOKEN_SECRET_SIGNATURE, (err, decoded) => {
+    if (err) {
+      console.log('❌ INVALID_TOKEN:', err.message)
+      return next(new Error('INVALID_TOKEN'))
+    }
+
+    socket.user = decoded
+    next()
+  })
 }

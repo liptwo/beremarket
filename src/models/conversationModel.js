@@ -113,7 +113,8 @@ const findByParticipantId = async (userId) => {
             // Chọn lọc và định hình lại trường otherParticipant
             otherParticipant: {
               _id: '$otherParticipant._id',
-              displayName: '$otherParticipant.name', // Sửa từ displayName thành name
+              displayName: '$otherParticipant.displayName', // Sửa từ displayName thành name
+              username: '$otherParticipant.username', // Sửa từ displayName thành name
               avatar: '$otherParticipant.avatar'
             }
           }
@@ -126,13 +127,76 @@ const findByParticipantId = async (userId) => {
   }
 }
 
-const findByParticipants = async (participants) => {
+// Cập nhật hàm này trong file model của bạn
+const findByParticipants = async (participants, reqUserId = null) => {
   try {
-    return await GET_DB()
-      .collection(CONVERSATION_COLLECTION_NAME)
-      .findOne({
-        participants: { $all: participants.map((id) => new ObjectId(id)) }
+    const db = GET_DB()
+    const queryPipeline = [
+      {
+        // 1. Tìm cuộc hội thoại có chứa cả 2 participants
+        $match: {
+          participants: { $all: participants.map((id) => new ObjectId(id)) }
+        }
+      },
+      {
+        // 2. Join với bảng users để lấy thông tin
+        $lookup: {
+          from: 'users',
+          localField: 'participants',
+          foreignField: '_id',
+          as: 'participantDetails'
+        }
+      },
+      {
+        // 3. Project để chọn lọc dữ liệu trả về
+        $project: {
+          participants: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          // Trả về mảng chi tiết user (nhưng chỉ lấy field cần thiết)
+          participantDetails: {
+            $map: {
+              input: '$participantDetails',
+              as: 'participant',
+              in: {
+                _id: '$$participant._id',
+                name: '$$participant.name',
+                avatar: '$$participant.avatar',
+                email: '$$participant.email'
+              }
+            }
+          }
+        }
+      }
+    ]
+
+    // Nếu có truyền reqUserId vào, ta sẽ tính toán luôn field "otherParticipant"
+    // Giống như cách bạn làm ở hàm findByParticipantId
+    if (reqUserId) {
+      queryPipeline.push({
+        $addFields: {
+          otherParticipant: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: '$participantDetails',
+                  as: 'p',
+                  cond: { $ne: ['$$p._id', new ObjectId(reqUserId)] }
+                }
+              },
+              0
+            ]
+          }
+        }
       })
+    }
+
+    const [conversation] = await db
+      .collection(CONVERSATION_COLLECTION_NAME)
+      .aggregate(queryPipeline)
+      .toArray()
+
+    return conversation || null
   } catch (error) {
     throw new Error(error)
   }

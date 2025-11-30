@@ -157,9 +157,79 @@ const getFavorites = async (req, res, next) => {
 
 const getAllUsers = async (req, res, next) => {
   try {
-    // Lấy tất cả người dùng, có thể thêm phân trang và bộ lọc sau này nếu cần
-    const users = await userModel.find({})
-    res.status(StatusCodes.OK).json(users)
+    // Lấy các tham số query cho phân trang, tìm kiếm và sắp xếp
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+    const search = req.query.search || ''
+    const sortBy = req.query.sortBy || 'createdAt'
+    const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1
+
+    // Xây dựng bộ lọc
+    const filter = {
+      _destroy: false // Chỉ lấy những user chưa bị xóa mềm
+    }
+    if (search) {
+      filter.$or = [
+        { displayName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { username: { $regex: search, $options: 'i' } }
+      ]
+    }
+
+    // Tùy chọn sắp xếp và phân trang
+    const options = {
+      sort: { [sortBy]: sortOrder },
+      skip: (page - 1) * limit,
+      limit: limit
+    }
+
+    // Lấy dữ liệu và tổng số lượng
+    const users = await userModel.find(filter, options)
+    const totalUsers = await userModel.countDocuments(filter)
+
+    res.status(StatusCodes.OK).json({
+      data: users,
+      total: totalUsers,
+      totalPages: Math.ceil(totalUsers / limit)
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+const getUserDetails = async (req, res, next) => {
+  try {
+    const user = await userService.getDetails(req.params.id)
+    res.status(StatusCodes.OK).json(user)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const createUserByAdmin = async (req, res, next) => {
+  try {
+    const result = await userService.createNew(req.body)
+    res.status(StatusCodes.CREATED).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const updateUserByAdmin = async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const result = await userService.update(id, req.body, null) // No avatar file from admin form for now
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const deleteUserByAdmin = async (req, res, next) => {
+  try {
+    const { id } = req.params
+    await userModel.deleteOneById(id) // Thực hiện soft delete
+    res.status(StatusCodes.OK).json({ message: 'User deleted successfully.' })
   } catch (error) {
     next(error)
   }
@@ -176,5 +246,9 @@ export const userController = {
   addFavorite,
   removeFavorite,
   getFavorites,
-  getAllUsers
+  getAllUsers,
+  getUserDetails,
+  createUserByAdmin,
+  updateUserByAdmin,
+  deleteUserByAdmin
 }
