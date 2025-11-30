@@ -2,6 +2,7 @@ import { StatusCodes } from 'http-status-codes'
 import { ENV } from '~/config/environment'
 import { JwtProvider } from '~/providers/JwtProvider'
 import ApiError from '~/utils/ApiError'
+import { userModel } from '~/models/userModel'
 
 // middlewares chịu trách nhiệm quan trọng xác thực JWT accesstoken nhận được  từ phía fe có hợp lệ không
 const isAuthorized = async (req, res, next) => {
@@ -42,4 +43,17 @@ const isAuthorized = async (req, res, next) => {
   }
 }
 
-export const authMiddleware = { isAuthorized }
+const isAdmin = (req, res, next) => {
+  if (req.jwtDecoded?.role !== userModel.USER_ROLES.ADMIN) {
+    next(
+      new ApiError(
+        StatusCodes.FORBIDDEN,
+        'Bạn không có quyền truy cập vào tài nguyên này.'
+      )
+    )
+    return
+  }
+  next()
+}
+
+export const authMiddleware = { isAuthorized, isAdmin }

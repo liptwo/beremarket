@@ -13,8 +13,10 @@ const LISTING_CONDITION = {
 const LISTING_STATUS = {
   PENDING: 'PENDING',
   PUBLISHED: 'PUBLISHED',
-  EXPIRED: 'EXPIRED',
-  DELETED: 'DELETED'
+  EXPIRED: 'EXPIRED', // Also used for 'Hidden'
+  DELETED: 'DELETED',
+  APPROVED: 'APPROVED', // Trạng thái đã được duyệt nhưng chưa public
+  REJECTED: 'REJECTED' // Trạng thái bị từ chối
 }
 
 const LISTING_COLLECTION_NAME = 'listings'
@@ -34,6 +36,7 @@ const LISTING_COLLECTION_SCHEMA = Joi.object({
   status: Joi.string()
     .valid(...Object.values(LISTING_STATUS))
     .default(LISTING_STATUS.PENDING),
+  rejectionReason: Joi.string().allow(null, ''), // Lý do từ chối
   expried_at: Joi.date().timestamp('javascript').default(null),
   views: Joi.number().default(0),
   viewedBy: Joi.array().items(Joi.string()).default([]),

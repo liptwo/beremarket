@@ -40,9 +40,67 @@ const createNew = async (req, res, next) => {
 
 const getCategories = async (req, res, next) => {
   try {
-    const filter = { _destroy: false } // Only retrieve non-deleted categories
-    const categories = await categoryModel.find(filter)
-    res.status(StatusCodes.OK).json(categories)
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 10
+    const search = req.query.search || ''
+
+    const filter = { _destroy: false }
+    if (search) {
+      filter.name = { $regex: search, $options: 'i' }
+    }
+
+    const options = {
+      sort: { createdAt: -1 },
+      skip: (page - 1) * limit,
+      limit: limit
+    }
+
+    const categories = await categoryModel.find(filter, options)
+    const totalCategories = await categoryModel.count(filter)
+
+    res.status(StatusCodes.OK).json({
+      data: categories,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalCategories / limit),
+        totalItems: totalCategories
+      }
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+const getDetails = async (req, res, next) => {
+  try {
+    const category = await categoryModel.findOneById(req.params.id)
+    if (!category) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Category not found.')
+    }
+    res.status(StatusCodes.OK).json(category)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const update = async (req, res, next) => {
+  try {
+    const updatedCategory = await categoryModel.update(req.params.id, req.body)
+    if (!updatedCategory) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Category not found.')
+    }
+    res.status(StatusCodes.OK).json(updatedCategory)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const deleteItem = async (req, res, next) => {
+  try {
+    await categoryModel.deleteItem(req.params.id)
+    res
+      .status(StatusCodes.OK)
+      .json({ message: 'Category deleted successfully.' })
   } catch (error) {
     next(error)
   }
@@ -50,5 +108,8 @@ const getCategories = async (req, res, next) => {
 
 export const categoryController = {
   createNew,
-  getCategories
+  getCategories,
+  getDetails,
+  update,
+  deleteItem
 }

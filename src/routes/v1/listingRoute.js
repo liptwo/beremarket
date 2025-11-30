@@ -10,6 +10,13 @@ Router.route('/all').get(listingController.getAllListingsSimple)
 Router.route('/search').get(listingController.getListings)
 Router.route('/').get(listingController.getListings) // Fallback for old path
 
+// Admin route to get all listings with filters
+Router.route('/admin').get(
+  authMiddleware.isAuthorized,
+  authMiddleware.isAdmin,
+  listingController.getListings
+)
+
 // All routes below this will be protected by the auth middleware
 
 Router.route('/me').get(
@@ -30,5 +37,12 @@ Router.route('/:id')
     listingController.updateListing
   )
   .delete(authMiddleware.isAuthorized, listingController.deleteListing)
+
+Router.route('/:id/status').patch(
+  authMiddleware.isAuthorized,
+  authMiddleware.isAdmin,
+  // Thêm validation nếu cần
+  listingController.updateStatus
+)
 
 export const listingRoute = Router

@@ -255,5 +255,9 @@ export const userService = {
   getDetails,
   addFavorite,
   removeFavorite,
-  getFavorites
+  getFavorites,
+  // Functions for admin
+  getAllUsers: userModel.find,
+  countUsers: userModel.countDocuments,
+  deleteUser: userModel.deleteOneById
 }

@@ -64,10 +64,62 @@ const find = async (filter = {}, options = {}) => {
   }
 }
 
+const update = async (id, data) => {
+  try {
+    // If a new code is provided, check for its uniqueness, excluding the current document.
+    if (data.code) {
+      const existingCategory = await GET_DB()
+        .collection(CATEGORY_COLLECTION_NAME)
+        .findOne({ code: data.code, _id: { $ne: new ObjectId(id) } })
+      if (existingCategory) {
+        throw new ApiError(
+          StatusCodes.CONFLICT,
+          'Category code already exists.'
+        )
+      }
+    }
+
+    const updateData = { ...data, updatedAt: Date.now() }
+    const result = await GET_DB()
+      .collection(CATEGORY_COLLECTION_NAME)
+      .findOneAndUpdate(
+        { _id: new ObjectId(id), _destroy: false },
+        { $set: updateData },
+        { returnDocument: 'after' }
+      )
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const deleteItem = async (id) => {
+  try {
+    const result = await GET_DB()
+      .collection(CATEGORY_COLLECTION_NAME)
+      .updateOne({ _id: new ObjectId(id) }, { $set: { _destroy: true } })
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const count = async (filter = {}) => {
+  try {
+    const db = GET_DB()
+    return await db.collection(CATEGORY_COLLECTION_NAME).countDocuments(filter)
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 export const categoryModel = {
   CATEGORY_COLLECTION_NAME,
   CATEGORY_COLLECTION_SCHEMA,
   createNew,
   findOneById,
-  find
+  find,
+  update,
+  deleteItem,
+  count
 }

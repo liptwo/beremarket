@@ -7,9 +7,16 @@ const MESSAGE_COLLECTION_SCHEMA = Joi.object({
   conversationId: Joi.string().required(),
   senderId: Joi.string().required(),
   receiverId: Joi.string().required(),
-  message: Joi.string().allow('').trim().strict(), // Cho phép tin nhắn rỗng nếu có ảnh
+  message: Joi.string().allow('', null).trim().strict().default(null), // Cho phép tin nhắn rỗng hoặc null
   isRead: Joi.boolean().default(false),
   imageUrl: Joi.string().uri().allow(null).default(null), // Thêm trường cho URL ảnh
+  location: Joi.object({
+    type: Joi.string().valid('Point').default('Point'),
+    coordinates: Joi.array().items(Joi.number()).length(2) // [longitude, latitude]
+  })
+    .optional()
+    .allow(null)
+    .default(null),
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
   _destroy: Joi.boolean().default(false)

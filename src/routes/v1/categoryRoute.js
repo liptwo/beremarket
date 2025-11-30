@@ -15,4 +15,21 @@ Router.route('/').post(
   categoryController.createNew
 )
 
+// Route to get a single category by ID (public)
+Router.route('/:id').get(categoryController.getDetails)
+
+// Route to update a category (protected, admin only)
+Router.route('/:id').put(
+  authMiddleware.isAuthorized,
+  categoryValidation.update,
+  categoryController.update
+)
+
+// Route to delete a category (soft delete) (protected, admin only)
+Router.route('/:id').delete(
+  authMiddleware.isAuthorized,
+  categoryValidation.deleteItem,
+  categoryController.deleteItem
+)
+
 export const categoryRoute = Router

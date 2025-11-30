@@ -8,12 +8,13 @@ import { getIO } from '~/sockets/messageSocket'
 const sendMessage = async (req, res, next) => {
   try {
     const senderId = req.jwtDecoded._id
-    const { receiverId, message, imageUrl } = req.body
+    const { receiverId, message, imageUrl, location } = req.body
 
-    if (!receiverId || !message) {
+    // Kiểm tra xem có receiverId và ít nhất một trong các nội dung tin nhắn không
+    if (!receiverId || (!message && !imageUrl && !location)) {
       throw new ApiError(
         StatusCodes.BAD_REQUEST,
-        'ReceiverId and message are required.'
+        'ReceiverId and message, imageUrl, or location are required.'
       )
     }
 
@@ -48,6 +49,13 @@ const sendMessage = async (req, res, next) => {
     }
     // Thêm imageUrl vào dữ liệu tin nhắn mới
     if (imageUrl) newMessageData.imageUrl = imageUrl
+    // Thêm location vào dữ liệu tin nhắn mới
+    if (location) {
+      newMessageData.location = {
+        type: 'Point',
+        coordinates: [location.longitude, location.latitude] // GeoJSON format: [longitude, latitude]
+      }
+    }
 
     const createResult = await messageModel.createNew(newMessageData)
 

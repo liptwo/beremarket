@@ -5,8 +5,14 @@ import ApiError from '~/utils/ApiError'
 const sendMessage = async (req, res, next) => {
   const correctCondition = Joi.object({
     receiverId: Joi.string().required(),
-    message: Joi.string().required().max(2000),
-    imageUrl: Joi.string().uri().optional() // Thêm trường imageUrl
+    message: Joi.string().allow('').max(2000),
+    imageUrl: Joi.string().uri().optional().allow(null),
+    location: Joi.object({
+      latitude: Joi.number().required(),
+      longitude: Joi.number().required()
+    })
+      .optional()
+      .allow(null)
   })
 
   try {

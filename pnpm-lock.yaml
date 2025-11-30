@@ -56,6 +56,9 @@ importers:
       multer:
         specifier: ^2.0.2
         version: 2.0.2
+      remarket:
+        specifier: file:..
+        version: file:..
       slugify:
         specifier: ^1.6.6
         version: 1.6.6
@@ -1957,6 +1960,9 @@ packages:
   regjsparser@0.13.0:
     resolution: {integrity: sha512-NZQZdC5wOE/H3UT28fVGL+ikOZcEzfMGk/c3iN9UGxzWHMa1op7274oyiUVrAG4B2EuFhus8SvkaYnhvW92p9Q==}
     hasBin: true
+
+  remarket@file:..:
+    resolution: {directory: .., type: directory}
 
   reselect@4.1.8:
     resolution: {integrity: sha512-ab9EmR80F/zQTMNeneUr4cv+jSwPJgIlvEmVwLerwrWVbpLlBuls9XHzIeTFy4cegU2NHBp3va0LKOzU5qFEYQ==}
@@ -4503,6 +4509,8 @@ snapshots:
   regjsparser@0.13.0:
     dependencies:
       jsesc: 3.1.0
+
+  remarket@file:..: {}
 
   reselect@4.1.8: {}
 

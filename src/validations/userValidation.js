@@ -10,7 +10,7 @@ import {
 
 // dù fe có validate dữ liệu rồi nhưng be vẫn phải cần validate
 // bắt buộc phải validate
-const createNew = async (req, res, next) => {
+const login = async (req, res, next) => {
   const correctCondition = Joi.object({
     email: Joi.string()
       .required()
@@ -54,7 +54,7 @@ const verifyAccount = async (req, res, next) => {
   }
 }
 
-const login = async (req, res, next) => {
+const createNew = async (req, res, next) => {
   const correctCondition = Joi.object({
     email: Joi.string()
       .required()
@@ -63,7 +63,15 @@ const login = async (req, res, next) => {
     password: Joi.string()
       .required()
       .pattern(PASSWORD_RULE)
-      .message(PASSWORD_RULE_MESSAGE)
+      .message(PASSWORD_RULE_MESSAGE),
+    username: Joi.string().required().trim().strict()
+
+    // // Optional fields
+    // avatar: Joi.string().allow(null, ''),
+    // address: Joi.string().allow(null, ''),
+    // phoneNumber: Joi.string().allow(null, ''),
+    // birthday: Joi.date().timestamp('javascript').allow(null, ''),
+    // gender: Joi.string().valid('MALE', 'FEMALE', 'OTHER').allow(null, '')
   })
 
   try {
@@ -78,13 +86,21 @@ const login = async (req, res, next) => {
 
 const update = async (req, res, next) => {
   const correctCondition = Joi.object({
-    displayName: Joi.string().trim().strict(),
+    // Không cho phép cập nhật các trường này qua API update thông thường
     current_password: Joi.string()
       .pattern(PASSWORD_RULE)
       .message(`current_password: ${PASSWORD_RULE_MESSAGE}`),
     new_password: Joi.string()
       .pattern(PASSWORD_RULE)
-      .message(`new_password: ${PASSWORD_RULE_MESSAGE}`)
+      .message(`new_password: ${PASSWORD_RULE_MESSAGE}`),
+
+    // Các trường cho phép admin cập nhật (và user tự cập nhật)
+    displayName: Joi.string().trim().strict(),
+    address: Joi.string().allow(null, ''),
+    phoneNumber: Joi.string().allow(null, ''),
+    birthday: Joi.date().timestamp('javascript').allow(null, ''),
+    gender: Joi.string().valid('MALE', 'FEMALE', 'OTHER').allow(null, ''),
+    role: Joi.string().valid('client', 'admin').allow(null, '')
   })
 
   try {

@@ -24,6 +24,10 @@ const USER_COLLECTION_SCHEMA = Joi.object({
     .valid(USER_ROLES.CLIENT, USER_ROLES.ADMIN)
     .default(USER_ROLES.CLIENT),
 
+  address: Joi.string().default(null),
+  birthday: Joi.date().timestamp('javascript').default(null),
+  gender: Joi.string().valid('MALE', 'FEMALE', 'OTHER').default('OTHER'),
+
   favorites: Joi.array().items(Joi.object().instance(ObjectId)).default([]),
 
   isActive: Joi.boolean().default(false),
@@ -31,7 +35,7 @@ const USER_COLLECTION_SCHEMA = Joi.object({
   phoneNumber: Joi.string().default('0333912532'),
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
-  destroy: Joi.boolean().default(false)
+  _destroy: Joi.boolean().default(false)
 })
 
 const INVALID_UPDATE_FIELDS = ['_id', 'email', 'username', 'createdAt']
@@ -95,39 +99,33 @@ const update = async (userId, updateData) => {
   }
 }
 
-const find = async (
-  filter = {},
-  options = { page: 1, limit: 10, search: '' }
-) => {
+const find = async (filter = {}, options = {}) => {
   try {
     const db = GET_DB()
-    const { page, limit, search } = options
-    const skip = (page - 1) * limit
-
-    let query = filter
-    if (search) {
-      query = {
-        ...filter,
-        $or: [
-          { displayName: { $regex: search, $options: 'i' } },
-          { email: { $regex: search, $options: 'i' } },
-          { username: { $regex: search, $options: 'i' } }
-        ]
-      }
+    let cursor = db.collection(USER_COLLECTION_NAME).find(filter)
+    if (options.sort) {
+      cursor = cursor.sort(options.sort)
     }
+    if (options.skip) {
+      cursor = cursor.skip(options.skip)
+    }
+    if (options.limit) {
+      cursor = cursor.limit(options.limit)
+    }
+    const users = await cursor.toArray()
+    // console.log('Users found:', users) // Bỏ comment dòng này để xem kết quả trong console của server
+    return users
+  } catch (error) {
+    throw new Error(error)
+  }
+}
 
-    const cursor = db.collection(USER_COLLECTION_NAME).find(query)
-    const totalItems = await db
+const aggregate = async (pipeline = []) => {
+  try {
+    return await GET_DB()
       .collection(USER_COLLECTION_NAME)
-      .countDocuments(query)
-    const totalPages = Math.ceil(totalItems / limit)
-
-    const data = await cursor.skip(skip).limit(limit).toArray()
-
-    return {
-      data,
-      pagination: { page, limit, totalItems, totalPages }
-    }
+      .aggregate(pipeline)
+      .toArray()
   } catch (error) {
     throw new Error(error)
   }
@@ -143,6 +141,21 @@ const countDocuments = async (filter = {}) => {
   }
 }
 
+const deleteOneById = async (userId) => {
+  try {
+    const result = await GET_DB()
+      .collection(USER_COLLECTION_NAME)
+      .findOneAndUpdate(
+        { _id: new ObjectId(userId) },
+        { $set: { _destroy: true, updatedAt: Date.now() } },
+        { returnDocument: 'after' }
+      )
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 export const userModel = {
   USER_COLLECTION_NAME,
   USER_COLLECTION_SCHEMA,
@@ -152,5 +165,7 @@ export const userModel = {
   findOneByEmail,
   update,
   find,
-  countDocuments
+  aggregate,
+  countDocuments,
+  deleteOneById
 }

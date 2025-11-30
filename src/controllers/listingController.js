@@ -76,10 +76,13 @@ const getListings = async (req, res, next) => {
 
     // Nếu không phải admin, áp dụng bộ lọc status mặc định
     const isAdmin = req.jwtDecoded?.role === userModel.USER_ROLES.ADMIN
-    if (isAdmin && status) {
-      // Admin có thể lọc theo bất kỳ trạng thái nào được cung cấp
-      filter.status = Array.isArray(status) ? { $in: status } : status
-    } else if (!isAdmin) {
+    if (isAdmin) {
+      // Nếu là admin và có gửi status, thì lọc theo status đó
+      if (status) {
+        filter.status = Array.isArray(status) ? { $in: status } : status
+      }
+      // Nếu là admin và không gửi status, thì không lọc theo status (lấy tất cả)
+    } else {
       // Người dùng thường chỉ có thể xem các bài đăng đã được xuất bản
       filter.status = 'PUBLISHED'
     }
@@ -276,6 +279,33 @@ const getMyListings = async (req, res, next) => {
   }
 }
 
+const updateStatus = async (req, res, next) => {
+  try {
+    const listingId = req.params.id
+    const { status, rejectionReason } = req.body
+
+    const listing = await listingModel.findOneById(listingId)
+    if (!listing) {
+      return res
+        .status(StatusCodes.NOT_FOUND)
+        .json({ message: 'Không tìm thấy tin đăng.' })
+    }
+
+    const updateData = { status }
+    if (status === 'REJECTED') {
+      updateData.rejectionReason = rejectionReason || 'Không có lý do cụ thể.'
+    } else {
+      // Xóa lý do từ chối nếu trạng thái không phải là REJECTED
+      updateData.rejectionReason = ''
+    }
+
+    const updatedListing = await listingModel.update(listingId, updateData)
+    res.status(StatusCodes.OK).json(updatedListing)
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const listingController = {
   createNew,
   getDetails,
@@ -283,5 +313,6 @@ export const listingController = {
   updateListing,
   deleteListing,
   getMyListings,
-  getAllListingsSimple
+  getAllListingsSimple,
+  updateStatus
 }

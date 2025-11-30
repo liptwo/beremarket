@@ -184,8 +184,8 @@ const getAllUsers = async (req, res, next) => {
     }
 
     // Lấy dữ liệu và tổng số lượng
-    const users = await userModel.find(filter, options)
-    const totalUsers = await userModel.countDocuments(filter)
+    const users = await userService.getAllUsers(filter, options)
+    const totalUsers = await userService.countUsers(filter)
 
     res.status(StatusCodes.OK).json({
       data: users,
@@ -228,7 +228,7 @@ const updateUserByAdmin = async (req, res, next) => {
 const deleteUserByAdmin = async (req, res, next) => {
   try {
     const { id } = req.params
-    await userModel.deleteOneById(id) // Thực hiện soft delete
+    await userService.deleteUser(id) // Thực hiện soft delete
     res.status(StatusCodes.OK).json({ message: 'User deleted successfully.' })
   } catch (error) {
     next(error)
