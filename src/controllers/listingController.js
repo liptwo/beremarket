@@ -173,7 +173,7 @@ const getAllListingsSimple = async (req, res, next) => {
   try {
     const filter = {
       _destroy: false, // Chỉ lấy các tin đăng chưa bị xóa mềm
-      status: { $nin: ['DELETED', 'EXPIRED', 'PENDING'] } // Không lấy các trạng thái này
+      status: 'PUBLISHED' // Chỉ lấy các tin đăng đã được xuất bản
     }
     // Sử dụng aggregation để join với thông tin người bán
     const listings = await listingModel.aggregate([
